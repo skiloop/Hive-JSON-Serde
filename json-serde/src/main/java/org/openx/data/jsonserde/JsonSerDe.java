@@ -52,18 +52,15 @@ import org.openx.data.jsonserde.json.JSONOptions;
 import org.openx.data.jsonserde.objectinspector.JsonObjectInspectorFactory;
 import org.openx.data.jsonserde.objectinspector.JsonStructOIOptions;
 
-import javax.print.attribute.standard.DateTimeAtCompleted;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
-import org.openx.data.jsonserde.objectinspector.primitive.JavaStringTimestampObjectInspector;
 import org.openx.data.jsonserde.objectinspector.primitive.ParsePrimitiveUtils;
 
 /**
  * Properties:
  * ignore.malformed.json = true/false : malformed json will be ignored
- *         instead of throwing an exception
- * 
+ * instead of throwing an exception
+ *
  * @author rcongiu
  */
 public class JsonSerDe extends AbstractSerDe {
@@ -84,18 +81,19 @@ public class JsonSerDe extends AbstractSerDe {
     // properties used in configuration
     public static final String PROP_IGNORE_MALFORMED_JSON = "ignore.malformed.json";
     public static final String PROP_DOTS_IN_KEYS = "dots.in.keys";
-    public static final String PROP_CASE_INSENSITIVE ="case.insensitive" ;
+    public static final String PROP_CASE_INSENSITIVE = "case.insensitive";
+    public static final String PROP_PARSING_JSON_STRING = "parsing.json.string";
 
-   JsonStructOIOptions options;
+    JsonStructOIOptions options;
 
     /**
      * Initializes the SerDe.
      * Gets the list of columns and their types from the table properties.
      * Will use them to look into/create JSON data.
-     * 
+     *
      * @param conf Hadoop configuration object
      * @param tbl  Table Properties
-     * @throws SerDeException 
+     * @throws SerDeException
      */
     @Override
     public void initialize(Configuration conf, Properties tbl) throws SerDeException {
@@ -103,7 +101,7 @@ public class JsonSerDe extends AbstractSerDe {
         // Get column names and sort order
         String columnNameProperty = tbl.getProperty(serdeConstants.LIST_COLUMNS);
         String columnTypeProperty = tbl.getProperty(serdeConstants.LIST_COLUMN_TYPES);
-        
+
         LOG.debug("columns " + columnNameProperty + " types " + columnTypeProperty);
 
         // all table column names
@@ -126,7 +124,7 @@ public class JsonSerDe extends AbstractSerDe {
         // Create row related objects
         rowTypeInfo = (StructTypeInfo) TypeInfoFactory
                 .getStructTypeInfo(columnNames, columnTypes);
-        
+
         // build options
         boolean isCaseInsensitive = Boolean.parseBoolean(tbl.getProperty(PROP_CASE_INSENSITIVE, "true"));
         options = new JsonStructOIOptions(getMappings(tbl, isCaseInsensitive));
@@ -136,12 +134,13 @@ public class JsonSerDe extends AbstractSerDe {
         String columnSortOrder = tbl.getProperty(serdeConstants.SERIALIZATION_SORT_ORDER);
         columnSortOrderIsDesc = new boolean[columnNames.size()];
         for (int i = 0; i < columnSortOrderIsDesc.length; i++) {
-            columnSortOrderIsDesc[i] = columnSortOrder != null && 
+            columnSortOrderIsDesc[i] = columnSortOrder != null &&
                     columnSortOrder.charAt(i) == '-';
         }
 
         // dots in key names. Substitute with underscores
-        options.setDotsInKeyNames(Boolean.parseBoolean(tbl.getProperty(PROP_DOTS_IN_KEYS,"false")));
+        options.setDotsInKeyNames(Boolean.parseBoolean(tbl.getProperty(PROP_DOTS_IN_KEYS, "false")));
+        options.setParsingJsonString(Boolean.parseBoolean(tbl.getProperty(PROP_PARSING_JSON_STRING, "false")));
 
         JSONOptions.globalOptions = new JSONOptions().setCaseInsensitive(options.isCaseInsensitive());
 
@@ -151,31 +150,31 @@ public class JsonSerDe extends AbstractSerDe {
         // other configuration
         ignoreMalformedJson = Boolean.parseBoolean(tbl
                 .getProperty(PROP_IGNORE_MALFORMED_JSON, "false"));
-        
+
     }
 
     /**
      * Deserializes the object. Reads a Writable and uses JSONObject to
      * parse its text
-     * 
+     *
      * @param w the text to parse
      * @return a JSONObject
-     * @throws SerDeException 
+     * @throws SerDeException
      */
     @Override
     public Object deserialize(Writable w) throws SerDeException {
         Text rowText = (Text) w;
         deserializedDataSize = rowText.getBytes().length;
-	
+
         // Try parsing row into JSON object
         Object jObj = null;
-        
+
         try {
             String txt = rowText.toString().trim();
-            
-            if(txt.startsWith("{")) {
+
+            if (txt.startsWith("{")) {
                 jObj = new JSONObject(txt);
-            } else if (txt.startsWith("[")){
+            } else if (txt.startsWith("[")) {
                 jObj = new JSONArray(txt);
             }
         } catch (JSONException e) {
@@ -188,7 +187,7 @@ public class JsonSerDe extends AbstractSerDe {
                 onMalformedJson("Error parsing empty row. This should never happen.");
             }
         }
-	
+
         return jObj;
     }
 
@@ -198,9 +197,9 @@ public class JsonSerDe extends AbstractSerDe {
     }
 
     /**
-     * We serialize to Text 
+     * We serialize to Text
+     *
      * @return
-     * 
      * @see org.apache.hadoop.io.Text
      */
     @Override
@@ -211,15 +210,15 @@ public class JsonSerDe extends AbstractSerDe {
     /**
      * Hive will call this to serialize an object. Returns a writable object
      * of the same class returned by <a href="#getSerializedClass">getSerializedClass</a>
-     * 
-     * @param obj The object to serialize
+     *
+     * @param obj          The object to serialize
      * @param objInspector The ObjectInspector that knows about the object's structure
-     * @return a serialized object in form of a Writable. Must be the 
-     *         same type returned by <a href="#getSerializedClass">getSerializedClass</a>
-     * @throws SerDeException 
+     * @return a serialized object in form of a Writable. Must be the
+     * same type returned by <a href="#getSerializedClass">getSerializedClass</a>
+     * @throws SerDeException
      */
     @Override
-    public Writable serialize(Object obj, ObjectInspector objInspector) throws SerDeException {        
+    public Writable serialize(Object obj, ObjectInspector objInspector) throws SerDeException {
         // make sure it is a struct record
         if (objInspector.getCategory() != Category.STRUCT) {
             throw new SerDeException(getClass().toString()
@@ -227,42 +226,42 @@ public class JsonSerDe extends AbstractSerDe {
                     + objInspector.getTypeName());
         }
 
-        JSONObject serializer = 
-            serializeStruct( obj, (StructObjectInspector) objInspector, columnNames);
-        
+        JSONObject serializer =
+                serializeStruct(obj, (StructObjectInspector) objInspector, columnNames);
+
         Text t = new Text(serializer.toString());
-        
+
         serializedDataSize = t.getBytes().length;
         return t;
     }
 
-    private String getSerializedFieldName( List<String> columnNames, int pos, StructField sf) {
-        String n = columnNames==null? sf.getFieldName(): columnNames.get(pos);
-        
-        if(options.getMappings().containsKey(n)) {
+    private String getSerializedFieldName(List<String> columnNames, int pos, StructField sf) {
+        String n = columnNames == null ? sf.getFieldName() : columnNames.get(pos);
+
+        if (options.getMappings().containsKey(n)) {
             return options.getMappings().get(n);
         } else {
             return n;
         }
     }
-    
+
     /**
-     * Serializing means getting every field, and setting the appropriate 
+     * Serializing means getting every field, and setting the appropriate
      * JSONObject field. Actual serialization is done at the end when
      * the whole JSON object is built
      */
-    private JSONObject serializeStruct( Object obj,
-            StructObjectInspector soi, List<String> columnNames) {
+    private JSONObject serializeStruct(Object obj,
+                                       StructObjectInspector soi, List<String> columnNames) {
         // do nothing for null struct
         if (null == obj) {
             return null;
         }
 
         JSONObject result = new JSONObject();
-        
+
         List<? extends StructField> fields = soi.getAllStructFieldRefs();
-        
-        for (int i =0; i< fields.size(); i++) {
+
+        for (int i = 0; i < fields.size(); i++) {
             StructField sf = fields.get(i);
             Object data = soi.getStructFieldData(obj, sf);
 
@@ -271,68 +270,70 @@ public class JsonSerDe extends AbstractSerDe {
                     // we want to serialize columns with their proper HIVE name,
                     // not the _col2 kind of name usually generated upstream
                     result.put(
-                            getSerializedFieldName(columnNames, i, sf), 
+                            getSerializedFieldName(columnNames, i, sf),
                             serializeField(
-                                data,
-                                sf.getFieldObjectInspector()));
-                    
+                                    data,
+                                    sf.getFieldObjectInspector()));
+
                 } catch (JSONException ex) {
-                   LOG.warn("Problem serializing", ex);
-                   throw new RuntimeException(ex);
+                    LOG.warn("Problem serializing", ex);
+                    throw new RuntimeException(ex);
                 }
             }
         }
         return result;
     }
-   
+
     /**
      * Serializes a field. Since we have nested structures, it may be called
-     * recursively for instance when defining a list<struct<>> 
-     * 
+     * recursively for instance when defining a list<struct<>>
+     *
      * @param obj Object holding the fields' content
      * @param oi  The field's objec inspector
-     * @return  the serialized object
-     */  
+     * @return the serialized object
+     */
     public Object serializeField(Object obj,
-            ObjectInspector oi ){
-        if(obj == null) {return null;}
-        
+                                 ObjectInspector oi) {
+        if (obj == null) {
+            return null;
+        }
+
         Object result = null;
-        switch(oi.getCategory()) {
+        switch (oi.getCategory()) {
             case PRIMITIVE:
-                PrimitiveObjectInspector poi = (PrimitiveObjectInspector)oi;
-                switch(poi.getPrimitiveCategory()) {
+                PrimitiveObjectInspector poi = (PrimitiveObjectInspector) oi;
+                switch (poi.getPrimitiveCategory()) {
                     case VOID:
                         result = null;
                         break;
                     case BOOLEAN:
-                        result = ((BooleanObjectInspector)poi).get(obj)?
-                                            Boolean.TRUE:
-                                            Boolean.FALSE;
+                        result = ((BooleanObjectInspector) poi).get(obj) ?
+                                Boolean.TRUE :
+                                Boolean.FALSE;
                         break;
                     case BYTE:
-                        result = ((ByteObjectInspector)poi).get(obj);
+                        result = ((ByteObjectInspector) poi).get(obj);
                         break;
                     case DOUBLE:
-                        result = ((DoubleObjectInspector)poi).get(obj);
+                        result = ((DoubleObjectInspector) poi).get(obj);
                         break;
                     case FLOAT:
-                        result = ((FloatObjectInspector)poi).get(obj);
+                        result = ((FloatObjectInspector) poi).get(obj);
                         break;
                     case INT:
-                        result = ((IntObjectInspector)poi).get(obj);
+                        result = ((IntObjectInspector) poi).get(obj);
                         break;
                     case LONG:
-                        result = ((LongObjectInspector)poi).get(obj);
+                        result = ((LongObjectInspector) poi).get(obj);
                         break;
                     case SHORT:
-                        result = ((ShortObjectInspector)poi).get(obj);
+                        result = ((ShortObjectInspector) poi).get(obj);
                         break;
                     case STRING:
-                        result = ((StringObjectInspector)poi).getPrimitiveJavaObject(obj);
+                        result = ((StringObjectInspector) poi).getPrimitiveJavaObject(obj);
                         break;
                     case TIMESTAMP:
-                        result = ParsePrimitiveUtils.serializeAsUTC((Timestamp)((TimestampObjectInspector)poi).getPrimitiveJavaObject(obj));
+                        result = ParsePrimitiveUtils.serializeAsUTC((Timestamp) ((TimestampObjectInspector) poi).getPrimitiveJavaObject(obj));
                         break;
                     case UNKNOWN:
                         throw new RuntimeException("Unknown primitive");
@@ -344,13 +345,13 @@ public class JsonSerDe extends AbstractSerDe {
                 result = serializeMap(obj, (MapObjectInspector) oi);
                 break;
             case LIST:
-                result = serializeList(obj, (ListObjectInspector)oi);
+                result = serializeList(obj, (ListObjectInspector) oi);
                 break;
             case STRUCT:
-                result = serializeStruct(obj, (StructObjectInspector)oi, null);
+                result = serializeStruct(obj, (StructObjectInspector) oi, null);
                 break;
             case UNION:
-                result = serializeUnion(obj, (UnionObjectInspector)oi);
+                result = serializeUnion(obj, (UnionObjectInspector) oi);
             default:
                 break;
         }
@@ -358,23 +359,25 @@ public class JsonSerDe extends AbstractSerDe {
     }
 
     /**
-     * Serializes a Hive List using a JSONArray 
-     * 
+     * Serializes a Hive List using a JSONArray
+     *
      * @param obj the object to serialize
      * @param loi the object's inspector
-     * @return 
+     * @return
      */
     private JSONArray serializeList(Object obj, ListObjectInspector loi) {
         // could be an array of whatever!
         // we do it in reverse order since the JSONArray is grown on demand,
         // as higher indexes are added.
-        if(obj==null) { return null; }
-        
+        if (obj == null) {
+            return null;
+        }
+
         JSONArray ar = new JSONArray();
-        for(int i=loi.getListLength(obj)-1; i>=0; i--) {
+        for (int i = loi.getListLength(obj) - 1; i >= 0; i--) {
             Object element = loi.getListElement(obj, i);
             try {
-                ar.put(i, serializeField(element, loi.getListElementObjectInspector() ) );
+                ar.put(i, serializeField(element, loi.getListElementObjectInspector()));
             } catch (JSONException ex) {
                 LOG.warn("Problem serializing array", ex);
                 throw new RuntimeException(ex);
@@ -387,47 +390,49 @@ public class JsonSerDe extends AbstractSerDe {
      * Serializes a Union
      */
     private Object serializeUnion(Object obj, UnionObjectInspector oi) {
-        if(obj == null) return null;
+        if (obj == null) return null;
 
         return serializeField(obj, oi.getObjectInspectors().get(oi.getTag(obj)));
     }
 
     /**
      * Serializes a Hive map&lt;&gt; using a JSONObject.
-     * 
+     *
      * @param obj the object to serialize
      * @param moi the object's inspector
-     * @return 
+     * @return
      */
     private JSONObject serializeMap(Object obj, MapObjectInspector moi) {
-        if (obj==null) { return null; }
-        
-        JSONObject jo = new JSONObject();  
+        if (obj == null) {
+            return null;
+        }
+
+        JSONObject jo = new JSONObject();
         Map m = moi.getMap(obj);
-        
-        for(Object k : m.keySet()) {
+
+        for (Object k : m.keySet()) {
             try {
                 jo.put(
                         serializeField(k, moi.getMapKeyObjectInspector()).toString(),
-                        serializeField(m.get(k), moi.getMapValueObjectInspector()) );
+                        serializeField(m.get(k), moi.getMapValueObjectInspector()));
             } catch (JSONException ex) {
                 LOG.warn("Problem serializing map");
             }
         }
         return jo;
     }
-    
+
     public void onMalformedJson(String msg) throws SerDeException {
-        if(ignoreMalformedJson) {
+        if (ignoreMalformedJson) {
             LOG.warn("Ignoring malformed JSON: " + msg);
-        }  else {
+        } else {
             throw new SerDeException(msg);
         }
     }
 
     @Override
     public SerDeStats getSerDeStats() {
-        if(lastOperationSerialize) {
+        if (lastOperationSerialize) {
             stats.setRawDataSize(serializedDataSize);
         } else {
             stats.setRawDataSize(deserializedDataSize);
@@ -435,30 +440,32 @@ public class JsonSerDe extends AbstractSerDe {
         return stats;
     }
 
-   
+
     public static final String PFX = "mapping.";
+
     /**
      * Builds mappings between hive columns and json attributes
-     * 
+     *
      * @param tbl
-     * @return 
+     * @return
      */
     private Map<String, String> getMappings(Properties tbl, boolean isCaseInsensitive) {
         int n = PFX.length();
-        Map<String,String> mps = new HashMap<String,String>();
-        
-        for(Object o: tbl.keySet()) {
-            if( ! (o instanceof String)) { continue ; }
+        Map<String, String> mps = new HashMap<String, String>();
+
+        for (Object o : tbl.keySet()) {
+            if (!(o instanceof String)) {
+                continue;
+            }
             String s = (String) o;
-            
-            if(s.startsWith(PFX) ) {
+
+            if (s.startsWith(PFX)) {
                 String fieldTo = tbl.getProperty(s);
-                mps.put(s.substring(n), (isCaseInsensitive ? fieldTo.toLowerCase(): fieldTo));
+                mps.put(s.substring(n), (isCaseInsensitive ? fieldTo.toLowerCase() : fieldTo));
             }
         }
         return mps;
     }
 
 
-    
 }

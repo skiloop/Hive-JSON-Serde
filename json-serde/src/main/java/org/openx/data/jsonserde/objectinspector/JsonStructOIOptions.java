@@ -15,51 +15,70 @@ package org.openx.data.jsonserde.objectinspector;
 import java.util.Map;
 
 /**
- *
  * @author rcongiu
  */
- /**
-     * We introduce this to carry mappings and other options
-     * we may want to support in the future.
-     * Signature for caching will be built using this.
-     */
-public  class JsonStructOIOptions {
-        Map<String,String> mappings;
-        public JsonStructOIOptions (Map<String,String> mp) {
-            mappings = mp;
-        }
-        boolean caseInsensitive = true; // converts JSON keys to case sensitive
-        boolean dotsInKeyNames = false;
-        public Map<String, String> getMappings() {
-            return mappings;
-        }
 
-     public boolean isDotsInKeyNames() {
-         return dotsInKeyNames;
-     }
+/**
+ * We introduce this to carry mappings and other options
+ * we may want to support in the future.
+ * Signature for caching will be built using this.
+ */
+public class JsonStructOIOptions {
+    Map<String, String> mappings;
 
-     public void setDotsInKeyNames(boolean dotsInKeyNames) {
-         this.dotsInKeyNames = dotsInKeyNames;
-     }
-     public void setCaseInsensitive(boolean c) { this.caseInsensitive = c; }
-     public boolean isCaseInsensitive() { return this.caseInsensitive; }
+    public JsonStructOIOptions(Map<String, String> mp) {
+        mappings = mp;
+    }
 
-     @Override
-     public boolean equals(Object o) {
-         if (this == o) return true;
-         if (o == null || getClass() != o.getClass()) return false;
+    boolean caseInsensitive = true; // converts JSON keys to case sensitive
+    boolean dotsInKeyNames = false;
+    boolean parseString = false; // parsing string
 
-         JsonStructOIOptions that = (JsonStructOIOptions) o;
+    public Map<String, String> getMappings() {
+        return mappings;
+    }
 
-         if (dotsInKeyNames != that.dotsInKeyNames) return false;
-         return mappings != null ? mappings.equals(that.mappings) : that.mappings == null;
+    public boolean isDotsInKeyNames() {
+        return dotsInKeyNames;
+    }
 
-     }
+    public void setDotsInKeyNames(boolean dotsInKeyNames) {
+        this.dotsInKeyNames = dotsInKeyNames;
+    }
 
-     @Override
-     public int hashCode() {
-         int result = mappings != null ? mappings.hashCode() : 0;
-         result = 31 * result + (dotsInKeyNames ? 1 : 0);
-         return result;
-     }
- }
+    public void setCaseInsensitive(boolean c) {
+        this.caseInsensitive = c;
+    }
+
+    public boolean isCaseInsensitive() {
+        return this.caseInsensitive;
+    }
+
+    public boolean parseString() {
+        return parseString;
+    }
+
+    public void setParsingJsonString(boolean parseString) {
+        this.parseString = parseString;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        JsonStructOIOptions that = (JsonStructOIOptions) o;
+
+        if (dotsInKeyNames != that.dotsInKeyNames) return false;
+        if (parseString != that.parseString) return false;
+        return mappings != null ? mappings.equals(that.mappings) : that.mappings == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = mappings != null ? mappings.hashCode() : 0;
+        result = 31 * result + (dotsInKeyNames ? 1 : 0);
+        return result;
+    }
+}
